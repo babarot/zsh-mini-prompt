@@ -68,10 +68,7 @@ __prompt_path() {
 }
 
 __prompt_exitcode() {
-    local ON_COLOR="%{${fg[green]}%}"
-    local OFF_COLOR="%{${reset_color}%}"
-    local ERR_COLOR="%{${fg[red]}%}"
-    echo "%(?..${ERR_COLOR}%? ⏎  ) ${OFF_COLOR}"
+    echo "%(?..%F{red}%? ⏎  %f) "
 }
 
 __prompt_git() {
@@ -104,59 +101,34 @@ __prompt_git() {
     fi
 }
 
-vim_mode_color=""
+# Sign color for the current vi keymap; stays empty unless vimode is enabled
+__prompt_vimode_color=""
 
-function zle-keymap-select zle-line-init {
-    # https://tutorialmore.com/questions-292160.htm
-    # https://unix.stackexchange.com/questions/547/make-my-zsh-prompt-show-mode-in-vi-mode
+__prompt_vimode_keymap_select() {
     case ${KEYMAP} in
-        main|viins)
-            # vim_mode_color="$fg[black]-- INSERT --$reset_color"
-            # vim_mode_color="insert"
-            vim_mode_color=""
-            ;;
         vicmd)
-            # vim_mode_color="$fg[white]-- NORMAL --$reset_color"
-            # vim_mode_color="normal"
-            # vim_mode_color="$fg[white]$$reset_color"
-            vim_mode_color="%F{white}"
+            __prompt_vimode_color="%F{white}"
             ;;
         vivis|vivli)
-            # vim_mode_color="$fg[yellow]-- VISUAL --$reset_color"
-            # vim_mode_color="visual"
-            # vim_mode_color="$fg[yellow]$$reset_color"
-            vim_mode_color="%F{yellow}"
+            __prompt_vimode_color="%F{yellow}"
             ;;
         virep)
-            # vim_mode_color="$fg[red]-- REPLACE --$reset_color"
-            # vim_mode_color="$fg[red]$$reset_color"
-            vim_mode_color="%F{red}"
+            __prompt_vimode_color="%F{red}"
+            ;;
+        *)
+            __prompt_vimode_color=""
             ;;
     esac
     zle reset-prompt
 }
 
-zle -N zle-line-init
-zle -N zle-keymap-select
-
-__vim_mode() {
-    local sign=${1}
-    if [[ -z ${sign} ]]; then
-        local default_sign="$(__prompt_zstyle "sign" "char" "$")"
-        echo "${default_sign}"
-        return 0
-    fi
-    if [[ ${sign} == "%" ]]; then
-        # need to escape in case of using %
-        sign="%%"
-    fi
-    local reset_prompt_color="%f"
-    echo "${vim_mode_color}${sign}${reset_prompt_color}"
+# Every new line starts in insert mode, so reset before the prompt is drawn
+__prompt_vimode_precmd() {
+    __prompt_vimode_color=""
 }
 
 __prompt_sign() {
     local sign="$(__prompt_zstyle "sign" "char" "$")"
-    local vimode_enable="$(__prompt_zstyle_bool "vimode" "enable" "false")"
     local color_on_error="$(__prompt_zstyle_bool "sign" "color-on-error" "false")"
 
     # Escape % character for prompt
@@ -164,27 +136,13 @@ __prompt_sign() {
         sign="%%"
     fi
 
-    if [[ "${vimode_enable}" == "true" ]]; then
-        # vi mode enabled: use vim_mode_color, but show red on error if in insert mode
-        local reset_prompt_color="%f"
-        if [[ -n "${vim_mode_color}" ]]; then
-            # In normal/visual/replace mode: use vim_mode_color
-            echo "${vim_mode_color}${sign}${reset_prompt_color}"
-        else
-            # In insert mode: show red on non-zero exit code if enabled
-            if [[ "${color_on_error}" == "true" ]]; then
-                echo "%(?.${sign}.%F{red}${sign}%f)"
-            else
-                echo "${sign}"
-            fi
-        fi
+    if [[ -n "${__prompt_vimode_color}" ]]; then
+        # In normal/visual/replace mode: use the keymap color
+        echo "${__prompt_vimode_color}${sign}%f"
+    elif [[ "${color_on_error}" == "true" ]]; then
+        echo "%(?.${sign}.%F{red}${sign}%f)"
     else
-        # vi mode disabled: show red on non-zero exit code if enabled
-        if [[ "${color_on_error}" == "true" ]]; then
-            echo "%(?.${sign}.%F{red}${sign}%f)"
-        else
-            echo "${sign}"
-        fi
+        echo "${sign}"
     fi
 }
 
@@ -207,6 +165,13 @@ __prompt_main() {
     setopt PROMPT_SUBST
     # Hide old prompt
     setopt TRANSIENT_RPROMPT
+
+    # Hook into zle only when vi mode indicator is enabled
+    if zstyle -t ':prompt:za:vimode' enable; then
+        autoload -Uz add-zle-hook-widget add-zsh-hook
+        add-zle-hook-widget keymap-select __prompt_vimode_keymap_select
+        add-zsh-hook precmd __prompt_vimode_precmd
+    fi
 
     # Get templates from zstyle
     local left_template="$(__prompt_zstyle "left" "template" "%sign% ")"
