@@ -74,6 +74,7 @@ zstyle ':prompt:za:right' template '%exitcode% %path% %git%'
 - `%path%` - Current working directory
 - `%git%` - Git branch and status information
 - `%exitcode%` - Exit code of last command (only shown on error)
+- `%vimode%` - Current vi mode as text, such as `N` (needs vi mode support enabled)
 
 ### Path Styles
 
@@ -179,6 +180,18 @@ zstyle ':prompt:za:vimode' replace-color 'magenta'   # default
 
 With `color-on-error`, a failed command still turns the sign red in insert mode.
 
+To show the mode as text too, put `%vimode%` in a template. It is drawn in the mode's color, and nothing is shown in insert mode by default:
+
+```zsh
+zstyle ':prompt:za:left' template '%vimode%%sign% '   # e.g. N$ in normal mode
+
+zstyle ':prompt:za:vimode' insert-indicator ''        # default: none
+zstyle ':prompt:za:vimode' normal-indicator 'N'       # default
+zstyle ':prompt:za:vimode' visual-indicator 'V'       # default
+zstyle ':prompt:za:vimode' visual-line-indicator 'L'  # default
+zstyle ':prompt:za:vimode' replace-indicator 'R'      # default
+```
+
 ## Customization Examples
 
 ### Example 1: Classic Style `[$ minimal (git)]`
@@ -269,6 +282,11 @@ zstyle ':prompt:za:git' show-upstream true
 | `:prompt:za:vimode` | `visual-color` | string | `yellow` | Sign color in visual mode |
 | `:prompt:za:vimode` | `visual-line-color` | string | `visual-color` | Sign color in visual line mode |
 | `:prompt:za:vimode` | `replace-color` | string | `magenta` | Sign color in replace mode |
+| `:prompt:za:vimode` | `insert-indicator` | string | none | `%vimode%` text in insert mode |
+| `:prompt:za:vimode` | `normal-indicator` | string | `N` | `%vimode%` text in normal mode |
+| `:prompt:za:vimode` | `visual-indicator` | string | `V` | `%vimode%` text in visual mode |
+| `:prompt:za:vimode` | `visual-line-indicator` | string | `L` | `%vimode%` text in visual line mode |
+| `:prompt:za:vimode` | `replace-indicator` | string | `R` | `%vimode%` text in replace mode |
 
 ## License
 

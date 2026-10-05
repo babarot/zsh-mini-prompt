@@ -41,6 +41,10 @@ zstyle -t ':prompt:za:vimode' enable 2>/dev/null || zstyle ':prompt:za:vimode' e
 zstyle -s ':prompt:za:vimode' normal-color _ || zstyle ':prompt:za:vimode' normal-color 'white'
 zstyle -s ':prompt:za:vimode' visual-color _ || zstyle ':prompt:za:vimode' visual-color 'yellow'
 zstyle -s ':prompt:za:vimode' replace-color _ || zstyle ':prompt:za:vimode' replace-color 'magenta'
+zstyle -s ':prompt:za:vimode' normal-indicator _ || zstyle ':prompt:za:vimode' normal-indicator 'N'
+zstyle -s ':prompt:za:vimode' visual-indicator _ || zstyle ':prompt:za:vimode' visual-indicator 'V'
+zstyle -s ':prompt:za:vimode' visual-line-indicator _ || zstyle ':prompt:za:vimode' visual-line-indicator 'L'
+zstyle -s ':prompt:za:vimode' replace-indicator _ || zstyle ':prompt:za:vimode' replace-indicator 'R'
 
 __shorten_path() {
     setopt localoptions noksharrays extendedglob
@@ -206,31 +210,56 @@ __prompt_vimode_precmd() {
     __prompt_vimode="insert"
 }
 
+# Set REPLY to the color of the current vi mode, empty when there is none
+__prompt_vimode_color() {
+    REPLY=""
+    case ${__prompt_vimode} in
+        visual-line)
+            zstyle -s ':prompt:za:vimode' visual-line-color REPLY ||
+                zstyle -s ':prompt:za:vimode' visual-color REPLY
+            ;;
+        ?*)
+            zstyle -s ':prompt:za:vimode' "${__prompt_vimode}-color" REPLY
+            ;;
+    esac
+}
+
 __prompt_sign() {
-    local sign color color_on_error
+    local sign color_on_error
     zstyle -s ':prompt:za:sign' char sign || sign='$'
     zstyle -t ':prompt:za:sign' color-on-error && color_on_error=true
 
     # Escape % character for prompt
     sign="${sign//\%/%%}"
 
-    case ${__prompt_vimode} in
-        visual-line)
-            zstyle -s ':prompt:za:vimode' visual-line-color color ||
-                zstyle -s ':prompt:za:vimode' visual-color color
-            ;;
-        ?*)
-            zstyle -s ':prompt:za:vimode' "${__prompt_vimode}-color" color
-            ;;
-    esac
+    local REPLY
+    __prompt_vimode_color
     local colored="${sign}"
-    [[ -n "${color}" ]] && colored="%F{${color}}${sign}%f"
+    [[ -n "${REPLY}" ]] && colored="%F{${REPLY}}${sign}%f"
 
     # A failed command turns the sign red, but only in insert mode
     if [[ "${color_on_error}" == "true" && ${__prompt_vimode:-insert} == insert ]]; then
         echo "%(?.${colored}.%F{red}${sign}%f)"
     else
         echo "${colored}"
+    fi
+}
+
+# Text for the current vi mode, in the mode's color
+__prompt_vimode_indicator() {
+    [[ -n "${__prompt_vimode}" ]] || return 0
+
+    local indicator
+    zstyle -s ':prompt:za:vimode' "${__prompt_vimode}-indicator" indicator
+    [[ -n "${indicator}" ]] || return 0
+    indicator="${indicator//\%/%%}"
+
+    local REPLY
+    __prompt_vimode_color
+    if [[ -n "${REPLY}" ]]; then
+        echo "%F{${REPLY}}${indicator}%f"
+    else
+        echo "${indicator}"
     fi
 }
 
@@ -241,6 +270,7 @@ __prompt_parse_template() {
 
     # Replace placeholders with actual values
     result="${result//\%sign\%/\$(__prompt_sign)}"
+    result="${result//\%vimode\%/\$(__prompt_vimode_indicator)}"
     result="${result//\%git\%/\${__prompt_git_result\}}"
     result="${result//\%path\%/\$(__prompt_path)}"
     result="${result//\%exitcode\%/\$(__prompt_exitcode)}"
