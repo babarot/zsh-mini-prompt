@@ -229,6 +229,13 @@ __prompt_sign() {
     zstyle -s ':prompt:za:sign' char sign || sign='$'
     zstyle -t ':prompt:za:sign' color-on-error && color_on_error=true
 
+    # Show the mode's indicator in place of the sign, where it has one
+    if [[ -n "${__prompt_vimode}" ]] && zstyle -t ':prompt:za:sign' vimode-indicator; then
+        local indicator
+        zstyle -s ':prompt:za:vimode' "${__prompt_vimode}-indicator" indicator
+        [[ -n "${indicator}" ]] && sign="${indicator}"
+    fi
+
     # Escape % character for prompt
     sign="${sign//\%/%%}"
 

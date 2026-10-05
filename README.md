@@ -192,6 +192,13 @@ zstyle ':prompt:za:vimode' visual-line-indicator 'L'  # default
 zstyle ':prompt:za:vimode' replace-indicator 'R'      # default
 ```
 
+To show the indicator in place of the sign instead, turn on `vimode-indicator`. Modes without an indicator, insert by default, keep the sign:
+
+```zsh
+zstyle ':prompt:za:sign' vimode-indicator true
+zstyle ':prompt:za:left' template '%sign% '           # $ in insert, N in normal
+```
+
 ## Customization Examples
 
 ### Example 1: Classic Style `[$ minimal (git)]`
@@ -271,6 +278,7 @@ zstyle ':prompt:za:git' show-upstream true
 | `:prompt:za:path` | `style` | string | `minimal` | Path display style |
 | `:prompt:za:sign` | `char` | string | `$` | Prompt sign character |
 | `:prompt:za:sign` | `color-on-error` | boolean | `false` | Show sign in red on non-zero exit |
+| `:prompt:za:sign` | `vimode-indicator` | boolean | `false` | Show the vi mode indicator in place of the sign |
 | `:prompt:za:git` | `format` | string | ` (%s)` | Git info format string |
 | `:prompt:za:git` | `show-dirty` | boolean | `false` | Show dirty state |
 | `:prompt:za:git` | `show-untracked` | boolean | `false` | Show untracked files |
