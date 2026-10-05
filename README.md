@@ -106,6 +106,8 @@ zstyle ':prompt:za:sign' color-on-error true
 
 The theme includes git-prompt.sh for displaying git repository information.
 
+Git information is computed in the background, so it never slows the prompt down, even in large repositories with every `show-*` option on. The prompt appears right away and `%git%` fills in once git finishes. Until then it keeps the previous value in the same directory, and stays empty after moving to another one. Nothing runs in the background when no template contains `%git%`.
+
 ```zsh
 # Change git format (brackets, parentheses, etc.)
 zstyle ':prompt:za:git' format ' [%s]'

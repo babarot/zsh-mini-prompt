@@ -101,6 +101,67 @@ __prompt_git() {
     fi
 }
 
+# %git% is computed in the background and shown once it is ready.
+# __prompt_git_pwd is the directory __prompt_git_result was computed in.
+__prompt_git_result=""
+__prompt_git_pwd=""
+__prompt_git_fd=""
+__prompt_git_pid=""
+
+# Discard the running job, if any. Only its subshell is killed; a git
+# command already started under it runs to the end with nowhere to write.
+__prompt_git_async_stop() {
+    [[ -n "${__prompt_git_fd}" ]] || return 0
+    zle -F "${__prompt_git_fd}" 2>/dev/null
+    exec {__prompt_git_fd}<&-
+    kill "${__prompt_git_pid}" 2>/dev/null
+    __prompt_git_fd=""
+    __prompt_git_pid=""
+}
+
+__prompt_git_async_start() {
+    __prompt_git_async_stop
+
+    # Keep the last result while computing, but not for another directory
+    if [[ "${__prompt_git_pwd}" != "${PWD}" ]]; then
+        __prompt_git_result=""
+    fi
+
+    # Process substitution does not set $!, so the job writes its pid first.
+    # Reading that line here waits only for the fork; the handler is
+    # registered after it and wakes up for the result alone.
+    # The job may still run when the next command starts, so it must not
+    # take index.lock away from that command.
+    exec {__prompt_git_fd}< <(
+        print -r -- "${sysparams[pid]}"
+        export GIT_OPTIONAL_LOCKS=0
+        __prompt_git
+    )
+    read -r -u "${__prompt_git_fd}" __prompt_git_pid
+    zle -F -w "${__prompt_git_fd}" __prompt_git_async_done
+}
+
+# A cd inside a zle widget (e.g. a fuzzy cd) redraws without precmd.
+# Outside zle the next precmd starts the job, and a cd in a subshell
+# must not start one at all.
+__prompt_git_async_chpwd() {
+    zle && __prompt_git_async_start
+}
+
+__prompt_git_async_done() {
+    local fd="$1" result
+    IFS= read -r -d '' -u "${fd}" result
+    zle -F "${fd}"
+    exec {fd}<&-
+    [[ "${fd}" == "${__prompt_git_fd}" ]] || return 0
+
+    __prompt_git_fd=""
+    __prompt_git_pid=""
+    __prompt_git_result="${result%$'\n'}"
+    __prompt_git_pwd="${PWD}"
+    zle reset-prompt
+}
+
 # Sign color for the current vi keymap; stays empty unless vimode is enabled
 __prompt_vimode_color=""
 
@@ -153,7 +214,7 @@ __prompt_parse_template() {
 
     # Replace placeholders with actual values
     result="${result//\%sign\%/\$(__prompt_sign)}"
-    result="${result//\%git\%/\$(__prompt_git)}"
+    result="${result//\%git\%/\${__prompt_git_result\}}"
     result="${result//\%path\%/\$(__prompt_path)}"
     result="${result//\%exitcode\%/\$(__prompt_exitcode)}"
 
@@ -176,6 +237,15 @@ __prompt_main() {
     # Get templates from zstyle
     local left_template="$(__prompt_zstyle "left" "template" "%sign% ")"
     local right_template="$(__prompt_zstyle "right" "template" "%exitcode% %path% %git%")"
+
+    # Run the git job only when a template shows it
+    if [[ "${left_template}${right_template}" == *%git%* ]]; then
+        zmodload zsh/system
+        autoload -Uz add-zsh-hook
+        zle -N __prompt_git_async_done
+        add-zsh-hook precmd __prompt_git_async_start
+        add-zsh-hook chpwd __prompt_git_async_chpwd
+    fi
 
     # Parse templates and set prompts
     PROMPT="$(__prompt_parse_template "${left_template}")"
