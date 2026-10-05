@@ -167,11 +167,17 @@ Enable vi mode indicator:
 zstyle ':prompt:za:vimode' enable true
 ```
 
-The prompt sign will change color based on the current vim mode:
-- Insert mode: Default color
-- Normal mode: White
-- Visual mode: Yellow
-- Replace mode: Red
+The prompt sign changes color with the current vi mode. Each color takes any value `%F{...}` accepts:
+
+```zsh
+zstyle ':prompt:za:vimode' insert-color ''           # default: none
+zstyle ':prompt:za:vimode' normal-color 'white'      # default
+zstyle ':prompt:za:vimode' visual-color 'yellow'     # default
+zstyle ':prompt:za:vimode' visual-line-color 'cyan'  # default: same as visual-color
+zstyle ':prompt:za:vimode' replace-color 'magenta'   # default
+```
+
+With `color-on-error`, a failed command still turns the sign red in insert mode.
 
 ## Customization Examples
 
@@ -258,6 +264,11 @@ zstyle ':prompt:za:git' show-upstream true
 | `:prompt:za:git` | `show-stash` | boolean | `false` | Show stash state |
 | `:prompt:za:git` | `show-upstream` | boolean | `false` | Show upstream state |
 | `:prompt:za:vimode` | `enable` | boolean | `false` | Enable vi mode indicator |
+| `:prompt:za:vimode` | `insert-color` | string | none | Sign color in insert mode |
+| `:prompt:za:vimode` | `normal-color` | string | `white` | Sign color in normal mode |
+| `:prompt:za:vimode` | `visual-color` | string | `yellow` | Sign color in visual mode |
+| `:prompt:za:vimode` | `visual-line-color` | string | `visual-color` | Sign color in visual line mode |
+| `:prompt:za:vimode` | `replace-color` | string | `magenta` | Sign color in replace mode |
 
 ## License
 

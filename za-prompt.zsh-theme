@@ -38,6 +38,9 @@ zstyle -s ':prompt:za:path' style _ || zstyle ':prompt:za:path' style 'minimal'
 zstyle -s ':prompt:za:sign' char _ || zstyle ':prompt:za:sign' char '$'
 zstyle -s ':prompt:za:git' format _ || zstyle ':prompt:za:git' format ' (%s)'
 zstyle -t ':prompt:za:vimode' enable 2>/dev/null || zstyle ':prompt:za:vimode' enable false
+zstyle -s ':prompt:za:vimode' normal-color _ || zstyle ':prompt:za:vimode' normal-color 'white'
+zstyle -s ':prompt:za:vimode' visual-color _ || zstyle ':prompt:za:vimode' visual-color 'yellow'
+zstyle -s ':prompt:za:vimode' replace-color _ || zstyle ':prompt:za:vimode' replace-color 'magenta'
 
 __shorten_path() {
     setopt localoptions noksharrays extendedglob
@@ -162,48 +165,72 @@ __prompt_git_async_done() {
     zle reset-prompt
 }
 
-# Sign color for the current vi keymap; stays empty unless vimode is enabled
-__prompt_vimode_color=""
+# Current vi mode: insert, normal, visual, visual-line or replace.
+# Stays empty unless vimode is enabled.
+__prompt_vimode=""
 
-__prompt_vimode_keymap_select() {
+# Visual mode does not change the keymap and replace mode stays in the
+# insert keymap, so the mode is read before every redraw instead of on
+# keymap-select.
+__prompt_vimode_update() {
+    local mode
     case ${KEYMAP} in
         vicmd)
-            __prompt_vimode_color="%F{white}"
+            case ${REGION_ACTIVE} in
+                1) mode="visual" ;;
+                2) mode="visual-line" ;;
+                *) mode="normal" ;;
+            esac
             ;;
-        vivis|vivli)
-            __prompt_vimode_color="%F{yellow}"
-            ;;
-        virep)
-            __prompt_vimode_color="%F{red}"
+        main|viins)
+            if [[ ${ZLE_STATE} == *overwrite* ]]; then
+                mode="replace"
+            else
+                mode="insert"
+            fi
             ;;
         *)
-            __prompt_vimode_color=""
+            # Keymaps such as isearch or menuselect keep the current mode
+            return 0
             ;;
     esac
+
+    # Runs on every redraw, so redraw the prompt only when the mode changes
+    [[ ${mode} == ${__prompt_vimode} ]] && return 0
+    __prompt_vimode="${mode}"
     zle reset-prompt
 }
 
 # Every new line starts in insert mode, so reset before the prompt is drawn
 __prompt_vimode_precmd() {
-    __prompt_vimode_color=""
+    __prompt_vimode="insert"
 }
 
 __prompt_sign() {
-    local sign="$(__prompt_zstyle "sign" "char" "$")"
-    local color_on_error="$(__prompt_zstyle_bool "sign" "color-on-error" "false")"
+    local sign color color_on_error
+    zstyle -s ':prompt:za:sign' char sign || sign='$'
+    zstyle -t ':prompt:za:sign' color-on-error && color_on_error=true
 
     # Escape % character for prompt
-    if [[ ${sign} == "%" ]]; then
-        sign="%%"
-    fi
+    sign="${sign//\%/%%}"
 
-    if [[ -n "${__prompt_vimode_color}" ]]; then
-        # In normal/visual/replace mode: use the keymap color
-        echo "${__prompt_vimode_color}${sign}%f"
-    elif [[ "${color_on_error}" == "true" ]]; then
-        echo "%(?.${sign}.%F{red}${sign}%f)"
+    case ${__prompt_vimode} in
+        visual-line)
+            zstyle -s ':prompt:za:vimode' visual-line-color color ||
+                zstyle -s ':prompt:za:vimode' visual-color color
+            ;;
+        ?*)
+            zstyle -s ':prompt:za:vimode' "${__prompt_vimode}-color" color
+            ;;
+    esac
+    local colored="${sign}"
+    [[ -n "${color}" ]] && colored="%F{${color}}${sign}%f"
+
+    # A failed command turns the sign red, but only in insert mode
+    if [[ "${color_on_error}" == "true" && ${__prompt_vimode:-insert} == insert ]]; then
+        echo "%(?.${colored}.%F{red}${sign}%f)"
     else
-        echo "${sign}"
+        echo "${colored}"
     fi
 }
 
@@ -230,7 +257,7 @@ __prompt_main() {
     # Hook into zle only when vi mode indicator is enabled
     if zstyle -t ':prompt:za:vimode' enable; then
         autoload -Uz add-zle-hook-widget add-zsh-hook
-        add-zle-hook-widget keymap-select __prompt_vimode_keymap_select
+        add-zle-hook-widget line-pre-redraw __prompt_vimode_update
         add-zsh-hook precmd __prompt_vimode_precmd
     fi
 
