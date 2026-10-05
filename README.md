@@ -48,6 +48,8 @@ echo "source /path/to/za-prompt/za-prompt.zsh-theme" >> ~/.zshrc
 
 This theme uses `zstyle` for configuration, providing a hierarchical and organized way to customize your prompt.
 
+Set the zstyles before sourcing the theme. The templates and the vi mode setting are read once when it is sourced.
+
 ### Quick Start
 
 The default configuration provides a clean prompt with minimal information:
@@ -125,6 +127,7 @@ Git status indicators (when enabled):
 - `<>` - Diverged from upstream
 - `<` - Behind upstream
 - `>` - Ahead of upstream
+- `=` - Up to date with upstream
 
 > [!TIP]
 > **Why `git format` is needed**

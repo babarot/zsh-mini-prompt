@@ -55,7 +55,7 @@ __prompt_path() {
             cwd="$(print -D "${PWD}")"
             ;;
         "shortpath")
-            cwd="$(__shorten_path "${PWD/$HOME/~}")"
+            cwd="$(__shorten_path "${PWD/#$HOME/~}")"
             ;;
         "minimal")
             cwd="$(print -P %2~)"
