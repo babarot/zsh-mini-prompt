@@ -78,6 +78,24 @@ __mini_prompt_exitcode() {
     echo "%(?..%F{red}%? ⏎  %f) "
 }
 
+# Succeeds when the default branch has commits the current branch lacks.
+# Only local refs are read, both the branch and its remote-tracking copy,
+# so the prompt never fetches. Worktrees share refs, so main advanced in
+# one checkout shows up in all the others at once.
+__mini_prompt_git_behind_base() {
+    local base branch ref
+    branch="$(git symbolic-ref -q --short HEAD 2>/dev/null)" || return 1
+    base="$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)"
+    base="${base#origin/}"
+    [[ "${branch}" != "${base:=main}" ]] || return 1
+    for ref in "refs/heads/${base}" "refs/remotes/origin/${base}"; do
+        # 1 means not an ancestor; a missing ref is an error, not behind
+        git merge-base --is-ancestor "${ref}" HEAD 2>/dev/null
+        (( $? == 1 )) && return 0
+    done
+    return 1
+}
+
 __mini_prompt_git() {
     # Check if __git_ps1 function exists (git-prompt.sh loaded)
     if ! type __git_ps1 &>/dev/null; then
@@ -100,6 +118,10 @@ __mini_prompt_git() {
 
     # Get git format from zstyle
     local git_format="$(__mini_prompt_zstyle "git" "format" " (%s)")"
+
+    if zstyle -t ':prompt:mini:git' show-behind-base 2>/dev/null && __mini_prompt_git_behind_base; then
+        git_format="${git_format//\%s/%s ⇣}"
+    fi
 
     # Call __git_ps1 with formatting
     local git_info="$(__git_ps1 "${git_format}")"
