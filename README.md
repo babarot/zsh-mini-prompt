@@ -107,10 +107,10 @@ zstyle ':prompt:mini:git' show-dirty true        # * unstaged, + staged
 zstyle ':prompt:mini:git' show-untracked true    # % untracked files
 zstyle ':prompt:mini:git' show-stash true        # $ stashed changes
 zstyle ':prompt:mini:git' show-upstream true     # < behind, > ahead, <> diverged, = up to date
-zstyle ':prompt:mini:git' show-behind-base true  # ⇣ behind the default branch
+zstyle ':prompt:mini:git' show-behind-base true  # ⇣3 behind the default branch by 3
 ```
 
-`⇣` means the default branch has commits that the current branch does not have yet, so it is time to rebase onto it. The default branch is the one `origin/HEAD` points to, or `main` without it, and `⇣` shows when either the local branch or its copy under `origin/` is ahead. Only refs already on your machine are read; the prompt never fetches. Worktrees share refs, so when main moves forward in one checkout, `⇣` appears in every other worktree at once. It never shows on the default branch itself or on a detached HEAD.
+`⇣3` means the default branch has 3 commits that the current branch does not have yet, so it is time to rebase onto it. The default branch is the one `origin/HEAD` points to, or `main` without it, and the count is taken from whichever of the local branch and its copy under `origin/` is further ahead. Only refs already on your machine are read; the prompt never fetches. Worktrees share refs, so when main moves forward in one checkout, `⇣` appears in every other worktree at once. It never shows on the default branch itself or on a detached HEAD.
 
 The status is computed in the background, so it never slows the prompt down. The prompt appears right away and `%git%` fills in once git finishes. Until then it keeps the previous value in the same directory, and stays empty after moving to another one. Nothing runs in the background when no template contains `%git%`.
 
@@ -207,7 +207,7 @@ zstyle ':prompt:mini:vimode' enable true
 | `:prompt:mini:git` | `show-untracked` | boolean | `false` | Show untracked files |
 | `:prompt:mini:git` | `show-stash` | boolean | `false` | Show stashed changes |
 | `:prompt:mini:git` | `show-upstream` | boolean | `false` | Show the state against upstream |
-| `:prompt:mini:git` | `show-behind-base` | boolean | `false` | Show `⇣` when the default branch is ahead |
+| `:prompt:mini:git` | `show-behind-base` | boolean | `false` | Show `⇣` and the count when the default branch is ahead |
 | `:prompt:mini:vimode` | `enable` | boolean | `false` | Color the sign by vi mode |
 | `:prompt:mini:vimode` | `insert-color` | string | none | Color in insert mode |
 | `:prompt:mini:vimode` | `normal-color` | string | `white` | Color in normal mode |

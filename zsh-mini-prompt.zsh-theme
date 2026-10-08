@@ -78,22 +78,24 @@ __mini_prompt_exitcode() {
     echo "%(?..%F{red}%? ⏎  %f) "
 }
 
-# Succeeds when the default branch has commits the current branch lacks.
-# Only local refs are read, both the branch and its remote-tracking copy,
-# so the prompt never fetches. Worktrees share refs, so main advanced in
-# one checkout shows up in all the others at once.
+# Prints how many commits the default branch has that the current branch
+# lacks, and fails when there are none. Only local refs are read, both the
+# branch and its remote-tracking copy, and the larger count wins, so the
+# prompt never fetches. Worktrees share refs, so main advanced in one
+# checkout shows up in all the others at once.
 __mini_prompt_git_behind_base() {
-    local base branch ref
+    local base branch ref count max=0
     branch="$(git symbolic-ref -q --short HEAD 2>/dev/null)" || return 1
     base="$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)"
     base="${base#origin/}"
     [[ "${branch}" != "${base:=main}" ]] || return 1
     for ref in "refs/heads/${base}" "refs/remotes/origin/${base}"; do
-        # 1 means not an ancestor; a missing ref is an error, not behind
-        git merge-base --is-ancestor "${ref}" HEAD 2>/dev/null
-        (( $? == 1 )) && return 0
+        # A missing ref prints nothing and counts as 0
+        count="$(git rev-list --count "HEAD..${ref}" 2>/dev/null)"
+        (( ${count:-0} > max )) && max="${count}"
     done
-    return 1
+    (( max > 0 )) || return 1
+    print -r -- "${max}"
 }
 
 __mini_prompt_git() {
@@ -119,8 +121,10 @@ __mini_prompt_git() {
     # Get git format from zstyle
     local git_format="$(__mini_prompt_zstyle "git" "format" " (%s)")"
 
-    if zstyle -t ':prompt:mini:git' show-behind-base 2>/dev/null && __mini_prompt_git_behind_base; then
-        git_format="${git_format//\%s/%s ⇣}"
+    local behind
+    if zstyle -t ':prompt:mini:git' show-behind-base 2>/dev/null &&
+        behind="$(__mini_prompt_git_behind_base)"; then
+        git_format="${git_format//\%s/%s ⇣${behind}}"
     fi
 
     # Call __git_ps1 with formatting
